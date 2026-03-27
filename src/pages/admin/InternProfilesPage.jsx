@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { QRCodeCanvas } from 'qrcode.react'
+import Barcode from 'react-barcode'
 import toast from 'react-hot-toast'
 import TopBar from '../../components/TopBar'
 import { db } from '../../firebase'
-import { buildInternQrPayload, formatDateTime } from '../../utils/attendance'
+import { buildInternBarcodePayload, buildInternQrPayload, formatDateTime } from '../../utils/attendance'
 
 const initials = (name = '') =>
   name
@@ -37,6 +38,11 @@ export default function InternProfilesPage() {
     return buildInternQrPayload(selected)
   }, [selected])
 
+  const barcodePayload = useMemo(() => {
+    if (!selected) return ''
+    return buildInternBarcodePayload(selected)
+  }, [selected])
+
   return (
     <section className="fade-up">
       <TopBar title="Intern Profiles" subtitle="Cards with quick contact info and QR preview" />
@@ -63,6 +69,19 @@ export default function InternProfilesPage() {
               <p>Registered: {formatDateTime(selected.createdAt)}</p>
               <div className="qr-wrap">
                 <QRCodeCanvas value={qrPayload} size={200} bgColor="#fff" fgColor="#0a0a0f" includeMargin />
+              </div>
+              <h3 className="barcode-heading">Machine Barcode (CODE128)</h3>
+              <div className="barcode-wrap">
+                <Barcode
+                  value={barcodePayload}
+                  format="CODE128"
+                  width={2}
+                  height={72}
+                  margin={0}
+                  displayValue
+                  background="#ffffff"
+                  lineColor="#0a0a0f"
+                />
               </div>
               <button className="btn-secondary" onClick={() => setSelected(null)}>
                 Close

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { collection, getDocs, orderBy, query, where, doc, getDoc } from 'firebase/firestore'
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore'
 import { QRCodeCanvas } from 'qrcode.react'
 import Barcode from 'react-barcode'
 import toast from 'react-hot-toast'
@@ -34,13 +34,15 @@ export default function InternDashboard() {
         const internData = internDoc.data()
         setIntern(internData)
 
-        const logsQuery = query(
-          collection(db, 'attendance'),
-          where('uid', '==', user.uid),
-          orderBy('entryTime', 'desc'),
-        )
+        const logsQuery = query(collection(db, 'attendance'), where('uid', '==', user.uid))
         const logsSnapshot = await getDocs(logsQuery)
-        setLogs(logsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
+        const attendanceLogs = logsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
+        attendanceLogs.sort((a, b) => {
+          const aTime = a.entryTime?.toDate ? a.entryTime.toDate().getTime() : 0
+          const bTime = b.entryTime?.toDate ? b.entryTime.toDate().getTime() : 0
+          return bTime - aTime
+        })
+        setLogs(attendanceLogs)
       } catch (error) {
         toast.error(error.message || 'Failed to load intern dashboard')
       } finally {
