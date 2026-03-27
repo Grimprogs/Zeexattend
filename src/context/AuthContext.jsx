@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { browserLocalPersistence, onAuthStateChanged, setPersistence, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { ADMIN_EMAIL } from '../utils/attendance'
@@ -12,29 +12,37 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (!firebaseUser) {
-        setUser(null)
-        setRole(null)
-        setLoading(false)
-        return
-      }
+    let unsubscribe = () => {}
 
-      setUser(firebaseUser)
+    const initializeAuth = async () => {
+      await setPersistence(auth, browserLocalPersistence).catch(() => {})
 
-      if (firebaseUser.email === ADMIN_EMAIL) {
-        const adminRef = doc(db, 'admins', firebaseUser.uid)
-        const adminDoc = await getDoc(adminRef)
-        if (adminDoc.exists() && adminDoc.data()?.role === 'admin') {
-          setRole('admin')
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (!firebaseUser) {
+          setUser(null)
+          setRole(null)
+          setLoading(false)
+          return
+        }
+
+        setUser(firebaseUser)
+
+        if (firebaseUser.email === ADMIN_EMAIL) {
+          const adminRef = doc(db, 'admins', firebaseUser.uid)
+          const adminDoc = await getDoc(adminRef)
+          if (adminDoc.exists() && adminDoc.data()?.role === 'admin') {
+            setRole('admin')
+          } else {
+            setRole('intern')
+          }
         } else {
           setRole('intern')
         }
-      } else {
-        setRole('intern')
-      }
-      setLoading(false)
-    })
+        setLoading(false)
+      })
+    }
+
+    initializeAuth()
 
     return () => unsubscribe()
   }, [])

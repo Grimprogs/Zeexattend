@@ -353,6 +353,18 @@ th {
   min-height: 340px;
 }
 
+.scan-mode-switch {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.active-scan-mode {
+  border-color: var(--accent);
+  background: rgba(108, 99, 255, 0.18);
+}
+
 .scanner-result {
   display: grid;
   align-content: start;
@@ -560,7 +572,8 @@ th {
   }
 
   .upload-panel .btn-ghost,
-  .machine-form .btn-secondary {
+  .machine-form .btn-secondary,
+  .scan-mode-switch .btn-ghost {
     width: 100%;
   }
 
