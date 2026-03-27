@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { QRCodeCanvas } from 'qrcode.react'
 import toast from 'react-hot-toast'
@@ -51,23 +52,25 @@ export default function InternProfilesPage() {
         ))}
       </div>
 
-      {selected && (
-        <div className="modal-backdrop" onClick={() => setSelected(null)}>
-          <div className="modal-card glass-card" onClick={(event) => event.stopPropagation()}>
-            <h2>{selected.name}</h2>
-            <p>{selected.email}</p>
-            <p>{selected.phone}</p>
-            <p>{selected.department}</p>
-            <p>Registered: {formatDateTime(selected.createdAt)}</p>
-            <div className="qr-wrap">
-              <QRCodeCanvas value={qrPayload} size={200} bgColor="#fff" fgColor="#0a0a0f" includeMargin />
+      {selected &&
+        createPortal(
+          <div className="modal-backdrop" onClick={() => setSelected(null)}>
+            <div className="modal-card glass-card" onClick={(event) => event.stopPropagation()}>
+              <h2>{selected.name}</h2>
+              <p>{selected.email}</p>
+              <p>{selected.phone}</p>
+              <p>{selected.department}</p>
+              <p>Registered: {formatDateTime(selected.createdAt)}</p>
+              <div className="qr-wrap">
+                <QRCodeCanvas value={qrPayload} size={200} bgColor="#fff" fgColor="#0a0a0f" includeMargin />
+              </div>
+              <button className="btn-secondary" onClick={() => setSelected(null)}>
+                Close
+              </button>
             </div>
-            <button className="btn-secondary" onClick={() => setSelected(null)}>
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </section>
   )
 }

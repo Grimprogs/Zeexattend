@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { collection, getDocs, orderBy, query, where } from 'firebase/firestore'
 import toast from 'react-hot-toast'
 import TopBar from '../../components/TopBar'
@@ -26,11 +27,16 @@ export default function AllInternsPage() {
   const openIntern = async (intern) => {
     setSelected(intern)
     try {
-      const logsSnapshot = await getDocs(
-        query(collection(db, 'attendance'), where('uid', '==', intern.uid), orderBy('entryTime', 'desc')),
-      )
-      setSelectedLogs(logsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
-    } catch {
+      const logsSnapshot = await getDocs(query(collection(db, 'attendance'), where('uid', '==', intern.uid)))
+      const logs = logsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
+      logs.sort((a, b) => {
+        const aTime = a.entryTime?.toDate ? a.entryTime.toDate().getTime() : 0
+        const bTime = b.entryTime?.toDate ? b.entryTime.toDate().getTime() : 0
+        return bTime - aTime
+      })
+      setSelectedLogs(logs)
+    } catch (error) {
+      toast.error(error.message || 'Could not load attendance history')
       setSelectedLogs([])
     }
   }
@@ -72,51 +78,53 @@ export default function AllInternsPage() {
         </div>
       </article>
 
-      {selected && (
-        <div className="modal-backdrop" onClick={() => setSelected(null)}>
-          <div className="modal-card glass-card" onClick={(event) => event.stopPropagation()}>
-            <h2>{selected.name}</h2>
-            <p>{selected.email}</p>
-            <p>{selected.phone}</p>
-            <p>{selected.department}</p>
+      {selected &&
+        createPortal(
+          <div className="modal-backdrop" onClick={() => setSelected(null)}>
+            <div className="modal-card glass-card" onClick={(event) => event.stopPropagation()}>
+              <h2>{selected.name}</h2>
+              <p>{selected.email}</p>
+              <p>{selected.phone}</p>
+              <p>{selected.department}</p>
 
-            <h3>Attendance History</h3>
-            <div className="table-wrap compact">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Entry</th>
-                    <th>Exit</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedLogs.map((logItem) => (
-                    <tr key={logItem.id}>
-                      <td>{logItem.date}</td>
-                      <td>{formatTimeOnly(logItem.entryTime)}</td>
-                      <td>{formatTimeOnly(logItem.exitTime)}</td>
-                      <td>
-                        <span className={`pill ${logItem.status}`}>{logItem.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                  {selectedLogs.length === 0 && (
+              <h3>Attendance History</h3>
+              <div className="table-wrap compact">
+                <table>
+                  <thead>
                     <tr>
-                      <td colSpan={4}>No logs available.</td>
+                      <th>Date</th>
+                      <th>Entry</th>
+                      <th>Exit</th>
+                      <th>Status</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {selectedLogs.map((logItem) => (
+                      <tr key={logItem.id}>
+                        <td>{logItem.date}</td>
+                        <td>{formatTimeOnly(logItem.entryTime)}</td>
+                        <td>{formatTimeOnly(logItem.exitTime)}</td>
+                        <td>
+                          <span className={`pill ${logItem.status}`}>{logItem.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {selectedLogs.length === 0 && (
+                      <tr>
+                        <td colSpan={4}>No logs available.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-            <button className="btn-secondary" onClick={() => setSelected(null)}>
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+              <button className="btn-secondary" onClick={() => setSelected(null)}>
+                Close
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </section>
   )
 }

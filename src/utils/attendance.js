@@ -1,6 +1,7 @@
 import { differenceInMinutes, format } from 'date-fns'
 
 export const ADMIN_EMAIL = 'admin@interntrack.com'
+export const BARCODE_PREFIX = 'ITK:'
 
 export const toDateKey = (value = new Date()) => format(value, 'yyyy-MM-dd')
 
@@ -35,6 +36,8 @@ export const buildInternQrPayload = (intern) =>
     department: intern.department,
   })
 
+export const buildInternBarcodePayload = (intern) => `${BARCODE_PREFIX}${intern.uid}`
+
 export const parseQrPayload = (payload) => {
   try {
     const parsed = JSON.parse(payload)
@@ -45,6 +48,28 @@ export const parseQrPayload = (payload) => {
   } catch {
     return null
   }
+}
+
+export const extractUidFromScan = (rawValue) => {
+  const value = `${rawValue ?? ''}`.trim()
+  if (!value) return null
+
+  const qrPayload = parseQrPayload(value)
+  if (qrPayload?.uid) {
+    return qrPayload.uid
+  }
+
+  if (value.startsWith(BARCODE_PREFIX)) {
+    const uid = value.slice(BARCODE_PREFIX.length).trim()
+    return uid || null
+  }
+
+  // Allow direct UID scan from hardware scanners configured to send plain text.
+  if (/^[A-Za-z0-9_-]{12,}$/.test(value)) {
+    return value
+  }
+
+  return null
 }
 
 export const toCsv = (headers, rows) => {

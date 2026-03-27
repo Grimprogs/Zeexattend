@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Html5Qrcode } from 'html5-qrcode'
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import {
   addDoc,
   collection,
@@ -14,7 +14,7 @@ import {
 import toast from 'react-hot-toast'
 import TopBar from '../../components/TopBar'
 import { db } from '../../firebase'
-import { formatDateTime, parseQrPayload, toDateKey } from '../../utils/attendance'
+import { extractUidFromScan, formatDateTime, toDateKey } from '../../utils/attendance'
 
 export default function ScannerPage() {
   const scannerRegionId = 'interntrack-scanner'
@@ -24,6 +24,7 @@ export default function ScannerPage() {
   const isProcessingRef = useRef(false)
   const [lastScan, setLastScan] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const [machineValue, setMachineValue] = useState('')
 
   useEffect(() => {
     const scanner = new Html5Qrcode(scannerRegionId)
@@ -33,7 +34,17 @@ export default function ScannerPage() {
       try {
         await scanner.start(
           { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 260, height: 260 } },
+          {
+            fps: 10,
+            qrbox: { width: 260, height: 260 },
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.QR_CODE,
+              Html5QrcodeSupportedFormats.CODE_128,
+              Html5QrcodeSupportedFormats.CODE_39,
+              Html5QrcodeSupportedFormats.EAN_13,
+              Html5QrcodeSupportedFormats.EAN_8,
+            ],
+          },
           async (decodedText) => {
             if (isProcessingRef.current) return
             isProcessingRef.current = true
@@ -74,16 +85,16 @@ export default function ScannerPage() {
   }, [])
 
   const handleScan = async (decodedText) => {
-    const payload = parseQrPayload(decodedText)
-    if (!payload) {
-      toast.error('Invalid QR payload')
+    const uid = extractUidFromScan(decodedText)
+    if (!uid) {
+      toast.error('Invalid QR/Barcode payload')
       return
     }
 
     try {
-      const internSnap = await getDoc(doc(db, 'interns', payload.uid))
+      const internSnap = await getDoc(doc(db, 'interns', uid))
       if (!internSnap.exists()) {
-        toast.error(`Intern not found for uid ${payload.uid}`)
+        toast.error(`Intern not found for uid ${uid}`)
         return
       }
       const internData = internSnap.data()
@@ -91,7 +102,7 @@ export default function ScannerPage() {
       const today = toDateKey()
       const openAttendanceQuery = query(
         collection(db, 'attendance'),
-        where('uid', '==', payload.uid),
+        where('uid', '==', uid),
         where('date', '==', today),
         where('status', '==', 'present'),
       )
@@ -99,7 +110,7 @@ export default function ScannerPage() {
 
       if (openSnapshot.empty) {
         await addDoc(collection(db, 'attendance'), {
-          uid: payload.uid,
+          uid,
           name: internData.name,
           department: internData.department,
           date: today,
@@ -143,7 +154,7 @@ export default function ScannerPage() {
       const decodedText = await uploadScanner.scanFile(file, true)
       await uploadScanner.clear()
       await handleScan(decodedText)
-      toast.success('QR image scanned successfully')
+      toast.success('QR/Barcode image scanned successfully')
     } catch (error) {
       toast.error(error.message || 'Could not read QR from image')
     } finally {
@@ -154,9 +165,16 @@ export default function ScannerPage() {
     }
   }
 
+  const onMachineSubmit = async (event) => {
+    event.preventDefault()
+    if (!machineValue.trim()) return
+    await handleScan(machineValue.trim())
+    setMachineValue('')
+  }
+
   return (
     <section className="fade-up">
-      <TopBar title="QR Scanner" subtitle="Scan intern QR to mark entry and exit" />
+      <TopBar title="QR/Barcode Scanner" subtitle="Use camera, upload, or scanner machine input" />
 
       <div className="scanner-grid">
         <article className="glass-card scanner-box">
@@ -166,6 +184,20 @@ export default function ScannerPage() {
 
         <article className="glass-card scanner-result">
           <h2>Last Scan Result</h2>
+          <form className="machine-form" onSubmit={onMachineSubmit}>
+            <label htmlFor="machine-input">Machine Scanner Input</label>
+            <input
+              id="machine-input"
+              type="text"
+              placeholder="Scan barcode here and press Enter"
+              value={machineValue}
+              onChange={(event) => setMachineValue(event.target.value)}
+            />
+            <button className="btn-secondary" type="submit">
+              Process Code
+            </button>
+          </form>
+
           <div className="upload-panel">
             <input
               ref={fileInputRef}
@@ -180,7 +212,7 @@ export default function ScannerPage() {
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
             >
-              {uploading ? 'Scanning image...' : 'Upload QR Image'}
+              {uploading ? 'Scanning image...' : 'Upload QR/Barcode Image'}
             </button>
           </div>
           {lastScan ? (

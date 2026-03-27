@@ -209,6 +209,20 @@ select:focus {
   justify-content: center;
 }
 
+.barcode-heading {
+  margin-top: 1rem;
+}
+
+.barcode-wrap {
+  margin: 0.8rem 0 1rem;
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.8rem;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
 .admin-shell {
   min-height: 100vh;
   display: grid;
@@ -329,6 +343,17 @@ th {
 
 .upload-panel {
   margin: 0.9rem 0;
+}
+
+.machine-form {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.7rem 0;
+}
+
+.machine-form label {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .hidden-file-input {

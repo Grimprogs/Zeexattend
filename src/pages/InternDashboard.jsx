@@ -2,10 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, orderBy, query, where, doc, getDoc } from 'firebase/firestore'
 import { QRCodeCanvas } from 'qrcode.react'
+import Barcode from 'react-barcode'
 import toast from 'react-hot-toast'
 import { db } from '../firebase'
 import { useAuth } from '../context/AuthContext'
-import { buildInternQrPayload, formatDateTime, formatTimeOnly } from '../utils/attendance'
+import {
+  buildInternBarcodePayload,
+  buildInternQrPayload,
+  formatDateTime,
+  formatTimeOnly,
+} from '../utils/attendance'
 
 export default function InternDashboard() {
   const { user, logout } = useAuth()
@@ -13,6 +19,7 @@ export default function InternDashboard() {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const qrRef = useRef(null)
+  const barcodeRef = useRef(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -49,6 +56,11 @@ export default function InternDashboard() {
     return buildInternQrPayload(intern)
   }, [intern])
 
+  const barcodePayload = useMemo(() => {
+    if (!intern) return ''
+    return buildInternBarcodePayload(intern)
+  }, [intern])
+
   const downloadQr = () => {
     const canvas = qrRef.current?.querySelector('canvas')
     if (!canvas || !intern) return
@@ -57,6 +69,36 @@ export default function InternDashboard() {
     anchor.href = image
     anchor.download = `${intern.name.replace(/\s+/g, '_').toLowerCase()}_qr.png`
     anchor.click()
+  }
+
+  const downloadBarcode = () => {
+    const svg = barcodeRef.current?.querySelector('svg')
+    if (!svg || !intern) return
+
+    const serializer = new XMLSerializer()
+    const svgData = serializer.serializeToString(svg)
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+    const svgUrl = URL.createObjectURL(svgBlob)
+    const image = new Image()
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = image.width
+      canvas.height = image.height
+      const context = canvas.getContext('2d')
+      if (context) {
+        context.fillStyle = '#ffffff'
+        context.fillRect(0, 0, canvas.width, canvas.height)
+        context.drawImage(image, 0, 0)
+        const anchor = document.createElement('a')
+        anchor.href = canvas.toDataURL('image/png')
+        anchor.download = `${intern.name.replace(/\s+/g, '_').toLowerCase()}_barcode.png`
+        anchor.click()
+      }
+      URL.revokeObjectURL(svgUrl)
+    }
+
+    image.src = svgUrl
   }
 
   if (loading) {
@@ -121,6 +163,23 @@ export default function InternDashboard() {
           </div>
           <button className="btn-primary" onClick={downloadQr}>
             Download QR PNG
+          </button>
+
+          <h2 className="barcode-heading">Machine Barcode (CODE128)</h2>
+          <div className="barcode-wrap" ref={barcodeRef}>
+            <Barcode
+              value={barcodePayload}
+              format="CODE128"
+              width={2}
+              height={72}
+              margin={0}
+              displayValue
+              background="#ffffff"
+              lineColor="#0a0a0f"
+            />
+          </div>
+          <button className="btn-secondary" onClick={downloadBarcode}>
+            Download Barcode PNG
           </button>
         </article>
       </section>
