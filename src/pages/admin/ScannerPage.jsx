@@ -25,10 +25,26 @@ export default function ScannerPage() {
   const [lastScan, setLastScan] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [machineValue, setMachineValue] = useState('')
+  const [scanMode, setScanMode] = useState('qr')
 
   useEffect(() => {
     const scanner = new Html5Qrcode(scannerRegionId)
     scannerRef.current = scanner
+
+    const modeFormats =
+      scanMode === 'barcode'
+        ? [
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+          ]
+        : [Html5QrcodeSupportedFormats.QR_CODE]
+
+    const modeQrBox =
+      scanMode === 'barcode'
+        ? { width: 360, height: 140 }
+        : { width: 260, height: 260 }
 
     const startScanner = async () => {
       try {
@@ -36,14 +52,8 @@ export default function ScannerPage() {
           { facingMode: 'environment' },
           {
             fps: 10,
-            qrbox: { width: 260, height: 260 },
-            formatsToSupport: [
-              Html5QrcodeSupportedFormats.QR_CODE,
-              Html5QrcodeSupportedFormats.CODE_128,
-              Html5QrcodeSupportedFormats.CODE_39,
-              Html5QrcodeSupportedFormats.EAN_13,
-              Html5QrcodeSupportedFormats.EAN_8,
-            ],
+            qrbox: modeQrBox,
+            formatsToSupport: modeFormats,
           },
           async (decodedText) => {
             if (isProcessingRef.current) return
@@ -82,7 +92,7 @@ export default function ScannerPage() {
       }
       safeStop()
     }
-  }, [])
+  }, [scanMode])
 
   const handleScan = async (decodedText) => {
     const uid = extractUidFromScan(decodedText)
@@ -178,6 +188,20 @@ export default function ScannerPage() {
 
       <div className="scanner-grid">
         <article className="glass-card scanner-box">
+          <div className="scan-mode-switch">
+            <button
+              className={`btn-ghost ${scanMode === 'qr' ? 'active-scan-mode' : ''}`}
+              onClick={() => setScanMode('qr')}
+            >
+              Camera QR Mode
+            </button>
+            <button
+              className={`btn-ghost ${scanMode === 'barcode' ? 'active-scan-mode' : ''}`}
+              onClick={() => setScanMode('barcode')}
+            >
+              Camera Barcode Mode
+            </button>
+          </div>
           <div id={scannerRegionId} className="scanner-region" />
           <div id="interntrack-upload-reader" className="hidden-file-input" />
         </article>
