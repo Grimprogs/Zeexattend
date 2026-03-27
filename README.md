@@ -2,6 +2,8 @@
 
 InternTrack is a full-stack React + Firebase attendance system where interns use personal QR codes and admins scan them to mark entry and exit.
 
+LIVE : https://zeexattend.vercel.app/
+
 ## Tech Stack
 
 - React + Vite
