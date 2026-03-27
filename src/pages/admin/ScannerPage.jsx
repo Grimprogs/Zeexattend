@@ -50,7 +50,7 @@ export default function ScannerPage() {
       scanMode === 'barcode'
         ? (viewfinderWidth, viewfinderHeight) => ({
             width: Math.max(280, Math.floor(viewfinderWidth * 0.9)),
-            height: Math.max(110, Math.floor(viewfinderHeight * 0.24)),
+            height: Math.max(95, Math.floor(viewfinderHeight * 0.18)),
           })
         : { width: 260, height: 260 }
 
@@ -80,6 +80,10 @@ export default function ScannerPage() {
         qrbox: modeQrBox,
         formatsToSupport: modeFormats,
         disableFlip: scanMode === 'barcode',
+        aspectRatio: scanMode === 'barcode' ? 16 / 9 : 1,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: scanMode === 'barcode',
+        },
       }
 
       const cameraCandidates = []

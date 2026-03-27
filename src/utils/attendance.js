@@ -36,7 +36,7 @@ export const buildInternQrPayload = (intern) =>
     department: intern.department,
   })
 
-export const buildInternBarcodePayload = (intern) => `${BARCODE_PREFIX}${intern.uid}`
+export const buildInternBarcodePayload = (intern) => `${intern.uid}`
 
 export const parseQrPayload = (payload) => {
   try {
