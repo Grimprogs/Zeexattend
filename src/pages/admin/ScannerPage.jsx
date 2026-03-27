@@ -36,38 +36,92 @@ export default function ScannerPage() {
         ? [
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.CODE_39_MOD_43,
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.ITF,
           ]
         : [Html5QrcodeSupportedFormats.QR_CODE]
 
     const modeQrBox =
       scanMode === 'barcode'
-        ? { width: 360, height: 140 }
+        ? (viewfinderWidth, viewfinderHeight) => ({
+            width: Math.max(280, Math.floor(viewfinderWidth * 0.9)),
+            height: Math.max(110, Math.floor(viewfinderHeight * 0.24)),
+          })
         : { width: 260, height: 260 }
 
-    const startScanner = async () => {
-      try {
-        await scanner.start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: modeQrBox,
-            formatsToSupport: modeFormats,
-          },
-          async (decodedText) => {
-            if (isProcessingRef.current) return
-            isProcessingRef.current = true
-            await handleScan(decodedText)
-            setTimeout(() => {
-              isProcessingRef.current = false
-            }, 1200)
-          },
-          () => {},
+    const findRearCameraConfig = async () => {
+      const cameras = await Html5Qrcode.getCameras()
+      if (!cameras?.length) return null
+
+      const rearCamera = cameras.find((camera) => {
+        const label = (camera.label || '').toLowerCase()
+        return (
+          label.includes('back') ||
+          label.includes('rear') ||
+          label.includes('environment') ||
+          label.includes('wide')
         )
+      })
+
+      if (rearCamera?.id) {
+        return { deviceId: { exact: rearCamera.id } }
+      }
+      return null
+    }
+
+    const startScanner = async () => {
+      const config = {
+        fps: scanMode === 'barcode' ? 12 : 10,
+        qrbox: modeQrBox,
+        formatsToSupport: modeFormats,
+        disableFlip: scanMode === 'barcode',
+      }
+
+      const cameraCandidates = []
+      try {
+        const rearCameraConfig = await findRearCameraConfig()
+        if (rearCameraConfig) {
+          cameraCandidates.push(rearCameraConfig)
+        }
+      } catch {
+        // Camera listing can fail before permission; fallback constraints below.
+      }
+
+      cameraCandidates.push({ facingMode: { exact: 'environment' } })
+      cameraCandidates.push({ facingMode: 'environment' })
+
+      let started = false
+      for (const cameraConfig of cameraCandidates) {
+        try {
+          await scanner.start(
+            cameraConfig,
+            config,
+            async (decodedText) => {
+              if (isProcessingRef.current) return
+              isProcessingRef.current = true
+              await handleScan(decodedText)
+              setTimeout(() => {
+                isProcessingRef.current = false
+              }, 1200)
+            },
+            () => {},
+          )
+          started = true
+          break
+        } catch {
+          // Try next camera preference.
+        }
+      }
+
+      if (started) {
         scannerStartedRef.current = true
-      } catch (error) {
-        toast.error(error.message || 'Camera access failed')
+      } else {
+        toast.error('Camera access failed. Please allow camera and use rear camera.')
       }
     }
 
