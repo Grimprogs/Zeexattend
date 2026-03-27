@@ -36,7 +36,8 @@ export const buildInternQrPayload = (intern) =>
     department: intern.department,
   })
 
-export const buildInternBarcodePayload = (intern) => `${intern.uid}`
+export const buildInternBarcodePayload = (intern) =>
+  `${intern.uid}|${intern.name}|${intern.email}|${intern.phone}|${intern.department}`
 
 export const parseQrPayload = (payload) => {
   try {
@@ -57,6 +58,14 @@ export const extractUidFromScan = (rawValue) => {
   const qrPayload = parseQrPayload(value)
   if (qrPayload?.uid) {
     return qrPayload.uid
+  }
+
+  // Handle pipe-delimited barcode format: uid|name|email|phone|department
+  if (value.includes('|')) {
+    const parts = value.split('|')
+    if (parts[0]) {
+      return parts[0].trim()
+    }
   }
 
   if (value.startsWith(BARCODE_PREFIX)) {
